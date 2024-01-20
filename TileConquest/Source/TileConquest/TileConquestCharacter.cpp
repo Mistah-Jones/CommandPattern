@@ -10,6 +10,9 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/Material.h"
 #include "Engine/World.h"
+#include "Runtime/Engine/Classes/Kismet/GameplayStatics.h"
+#include "Runtime/Engine/Classes/GameFramework/PlayerController.h"
+#include <string>
 
 ATileConquestCharacter::ATileConquestCharacter()
 {
@@ -32,7 +35,7 @@ ATileConquestCharacter::ATileConquestCharacter()
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->SetUsingAbsoluteRotation(true); // Don't want arm to rotate when character does
 	CameraBoom->TargetArmLength = 800.f;
-	CameraBoom->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
+	CameraBoom->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
 	CameraBoom->bDoCollisionTest = false; // Don't want to pull camera in when it collides with level
 
 	// Create a camera...
@@ -48,4 +51,14 @@ ATileConquestCharacter::ATileConquestCharacter()
 void ATileConquestCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+		// GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Some debug message!"));
+
+	//float mouseX;
+	//float mouseY;
+	//UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetMousePosition(mouseX, mouseY);
+	//FString message = "Mouse Location: ";
+	//message.Append(FString::SanitizeFloat(mouseX));
+	// string message = "Mouse Location: " + mouseX + mouseY;
+	// GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, message);
+	// FString::Printf(TEXT("Mouse Location: %f, %f"), mouseX, mouseY);
 }

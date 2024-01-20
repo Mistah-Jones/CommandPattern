@@ -57,16 +57,10 @@ void ATileConquestPlayerController::PlayerTick(float DeltaTime)
 
 bool ATileConquestPlayerController::IsTileInRange(ATile* DestinationTile)
 {
-	// If the current tile is null, allow the player to move there. This avoids a crash!
-	if (CurrentTile == nullptr)
-	{
-		return true;
-	}
-
 	// If the tile is more than 1 tile's worth distance away, ignore the input
 	FVector currLocation = CurrentTile->GetActorLocation();
 	FVector targetLocation = DestinationTile->GetActorLocation();
-	return FVector::Distance(currLocation, targetLocation) < 151.f;
+	return FVector::Distance(currLocation, targetLocation) > 51.f;
 }
 
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "GameFramework/PlayerController.h"
+#include <Tile.h>
 #include "TileConquestPlayerController.generated.h"
 
 /** Forward declaration to improve compiling times */
@@ -45,6 +46,9 @@ private:
 	bool bInputPressed; // Input is bring pressed
 	bool bIsTouch; // Is it a touch device
 	float FollowTime; // For how long it has been pressed
+	ATile* CurrentTile;
+
+	bool IsTileInRange(ATile* DestinationTile);
 };
 
 
