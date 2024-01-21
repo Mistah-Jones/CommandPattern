@@ -8,13 +8,11 @@
 #include "TileConquestCharacter.h"
 #include "Engine/World.h"
 #include <MoveCommand.h>
-#include <Kismet/GameplayStatics.h>
 
 TArray<MoveCommand*> MoveCommands;
 // TQueue<MoveCommand*> MoveCommands;
 MoveCommand* m_CurrentMoveCommand;
 int moveCommandIndex = 0;
-bool foundFirstTile = false;
 
 ATileConquestPlayerController::ATileConquestPlayerController()
 {
@@ -22,7 +20,6 @@ ATileConquestPlayerController::ATileConquestPlayerController()
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
 	m_CurrentMoveCommand = new MoveCommand(this);
-	foundFirstTile = false;
 	// MoveCommands.Enqueue(m_CurrentMoveCommand);
 	// auto firstMoveCommand = new MoveCommand(this);
 	// MoveCommands.Add(firstMoveCommand);
@@ -31,27 +28,6 @@ ATileConquestPlayerController::ATileConquestPlayerController()
 void ATileConquestPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
-	if (!foundFirstTile)
-	{
-		TArray<AActor*> FoundActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile::StaticClass(), FoundActors);
-		// UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetOverlappingActors(FoundActors, ATile::StaticClass());
-		auto playerLocation = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation();
-
-		for(AActor* actor : FoundActors)
-		{
-			if (ATile* tile = Cast<ATile>(actor))
-			{
-				// Check if it is close enough to be the starting tile
-				if (FVector::Distance(playerLocation, tile->GetActorLocation()) < 151.0f)
-				{
-					m_CurrentMoveCommand->execute(tile);
-					foundFirstTile = true;
-					break;
-				}
-			}
-		}
-	}
 }
 
 void ATileConquestPlayerController::DecreaseMoveCommandCount()

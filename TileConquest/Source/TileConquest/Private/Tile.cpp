@@ -27,7 +27,6 @@ void ATile::BeginPlay()
 void ATile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void ATile::StepOn()
