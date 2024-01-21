@@ -35,6 +35,5 @@ public:
 		UMaterialInterface* ActivatedMaterial;
 
 	void StepOn();
-	void StepOff();
 
 };

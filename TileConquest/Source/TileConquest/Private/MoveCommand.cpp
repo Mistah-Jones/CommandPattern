@@ -6,8 +6,9 @@
 MoveCommand::MoveCommand()
 {
 }
-*/
+
 
 MoveCommand::~MoveCommand()
 {
 }
+*/

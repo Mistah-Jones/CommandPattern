@@ -32,13 +32,7 @@ void ATile::Tick(float DeltaTime)
 
 void ATile::StepOn()
 {
-	SteppedOn = true;
-	TileMesh->SetMaterial(0, ActivatedMaterial);
-}
-
-void ATile::StepOff()
-{
-	SteppedOn = false;
-	TileMesh->SetMaterial(0, DeactivatedMaterial);
+	SteppedOn = !SteppedOn;
+	TileMesh->SetMaterial(0, SteppedOn ? ActivatedMaterial : DeactivatedMaterial);
 }
 

@@ -29,8 +29,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UNiagaraSystem* FXCursor;
 
-	void MoveTo(ATile* destinationTile, bool activateStep);
+	bool MoveTo(ATile* destinationTile, bool activateStep, bool isUndoOrRedo);
 	ATile* GetCurrentTile();
+	void DecreaseMoveCommandCount();
 
 protected:
 	/** True if the controlled character should navigate to the mouse cursor. */

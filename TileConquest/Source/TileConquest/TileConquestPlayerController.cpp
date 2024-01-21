@@ -9,16 +9,17 @@
 #include "Engine/World.h"
 #include <MoveCommand.h>
 
-// TArray<MoveCommand*> MoveCommands;
+TArray<MoveCommand*> MoveCommands;
 // TQueue<MoveCommand*> MoveCommands;
-MoveCommand* m_MoveCommand;
-int moveCommandIndex = -1;
+MoveCommand* m_CurrentMoveCommand;
+int moveCommandIndex = 0;
 
 ATileConquestPlayerController::ATileConquestPlayerController()
 {
+	MoveCommands.Empty();
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
-	m_MoveCommand = new MoveCommand(this);
+	m_CurrentMoveCommand = new MoveCommand(this);
 	// MoveCommands.Enqueue(m_CurrentMoveCommand);
 	// auto firstMoveCommand = new MoveCommand(this);
 	// MoveCommands.Add(firstMoveCommand);
@@ -27,6 +28,11 @@ ATileConquestPlayerController::ATileConquestPlayerController()
 void ATileConquestPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+}
+
+void ATileConquestPlayerController::DecreaseMoveCommandCount()
+{
+	moveCommandIndex--;
 }
 
 bool ATileConquestPlayerController::IsTileInRange(ATile* DestinationTile)
@@ -43,13 +49,13 @@ bool ATileConquestPlayerController::IsTileInRange(ATile* DestinationTile)
 	return FVector::Distance(currLocation, targetLocation) < 151.f;
 }
 
-void ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activateStep)
+bool ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activateStep, bool isUndoOrRedo)
 {
 	// If the destination is null, we have likely hit the end of the undo / redo chain
 	// This prevents a crash!	
 	if (destinationTile == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	if (IsTileInRange(destinationTile))
@@ -66,6 +72,22 @@ void ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activate
 		{
 			destinationTile->StepOn();
 		}
+
+		// Only add a movement command if it wasn't an undo or redo
+		if (!isUndoOrRedo)
+		{
+			MoveCommands.Add(new MoveCommand(m_CurrentMoveCommand));
+			moveCommandIndex = MoveCommands.Num() - 1;
+		}
+
+		auto intstring = FString::FromInt(moveCommandIndex);
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, intstring);
+
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 
@@ -89,7 +111,17 @@ void ATileConquestPlayerController::UndoCallback()
 		moveCommandIndex = 0;
 	}
 	*/
-	m_MoveCommand->undo();
+	// Don't let the player undo if they haven't done anything yet!
+	if (MoveCommands.Num() > 0)
+	{
+		// Don't let the player undo past the first move
+		if (moveCommandIndex >= 0)
+		{
+			MoveCommands[moveCommandIndex]->undo();
+			// moveCommandIndex--;
+		}
+	}
+
 }
 
 void ATileConquestPlayerController::RedoCallback()
@@ -107,7 +139,16 @@ void ATileConquestPlayerController::RedoCallback()
 		moveCommandIndex = 0;
 	}
 	*/
-	m_MoveCommand->redo();
+	// The player hasn't done anything yet!
+	if (m_CurrentMoveCommand != nullptr)
+	{
+		// Don't let the player redo a move they haven't made yet
+		if (moveCommandIndex < MoveCommands.Num() - 1)
+		{
+			moveCommandIndex++;
+			MoveCommands[moveCommandIndex]->redo();
+		}
+	}
 }
 
 void ATileConquestPlayerController::SetupInputComponent()
@@ -141,7 +182,7 @@ void ATileConquestPlayerController::SetupInputComponent()
 void ATileConquestPlayerController::OnSetDestinationPressed()
 {
 	// Just in case the character was moving because of a previous short press we stop it
-	StopMovement();
+	// StopMovement();
 }
 
 void ATileConquestPlayerController::CleanUpCommandList()
@@ -171,19 +212,23 @@ void ATileConquestPlayerController::OnSetDestinationReleased()
 	GetHitResultUnderCursor(ECC_Visibility, true, Hit);
 
 	AActor* hitActor = Hit.GetActor();
-	if (hitActor->IsA(ATile::StaticClass()))
+	if (hitActor != nullptr)
 	{
-		ATile* tileActor = Cast<ATile>(hitActor);
-		m_MoveCommand->execute(tileActor);
-		/*
-		auto moveCommand = new MoveCommand(this);
-		moveCommand->execute(tileActor);
-		moveCommandIndex++;
-		*/
+		if (hitActor->IsA(ATile::StaticClass()))
+		{
+			ATile* tileActor = Cast<ATile>(hitActor);
+			// m_CurrentMoveCommand = new MoveCommand(this);
+			m_CurrentMoveCommand->execute(tileActor);
+			/*
+			auto moveCommand = new MoveCommand(this);
+			moveCommand->execute(tileActor);
+			moveCommandIndex++;
+			*/
 
-		//CleanUpCommandList();
-		//MoveCommands.Add(moveCommand);
-		// MoveTo(tileActor);
+			//CleanUpCommandList();
+			//MoveCommands.Add(moveCommand);
+			// MoveTo(tileActor);
+		}
 	}
 }
 

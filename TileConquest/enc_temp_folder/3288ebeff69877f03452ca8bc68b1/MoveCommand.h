@@ -75,14 +75,13 @@ public:
         // If the player is trying to undo to the tile they are currently on, something has gone wrong and we should ignore the undo
         if (PreviousTile != nullptr)
         {
-            float distance = FVector::Distance(PreviousTile->GetActorLocation(), PlayerUnit->GetCurrentTile()->GetActorLocation());
-            if ((distance > 20.0f) && (distance  < 151.0f))
+            if (FVector::Distance(PreviousTile->GetActorLocation(), PlayerUnit->GetCurrentTile()->GetActorLocation()) > 20.0f)
             {
                 bool moveSuccessful = PlayerUnit->MoveTo(PreviousTile, false, true);
                 if (moveSuccessful)
                 {
                     PreviousTile->TileMesh->SetVisibility(true);
-                    CurrentTile->StepOff();
+                    CurrentTile->StepOn();
                     PlayerUnit->DecreaseMoveCommandCount();
                 }
             }
