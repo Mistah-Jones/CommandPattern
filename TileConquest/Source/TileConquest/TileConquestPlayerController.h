@@ -6,6 +6,8 @@
 #include "Templates/SubclassOf.h"
 #include "GameFramework/PlayerController.h"
 #include <Tile.h>
+//#include <Command.h>
+// #include <MoveCommand.h>
 #include "TileConquestPlayerController.generated.h"
 
 /** Forward declaration to improve compiling times */
@@ -27,6 +29,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UNiagaraSystem* FXCursor;
 
+	void MoveTo(ATile* destinationTile, bool activateStep);
+	ATile* GetCurrentTile();
+
 protected:
 	/** True if the controlled character should navigate to the mouse cursor. */
 	uint32 bMoveToMouseCursor : 1;
@@ -47,8 +52,13 @@ private:
 	bool bIsTouch; // Is it a touch device
 	float FollowTime; // For how long it has been pressed
 	ATile* CurrentTile;
+	// MoveCommand* movementCommand;
 
 	bool IsTileInRange(ATile* DestinationTile);
+	void CleanUpCommandList();
+	void UndoCallback();
+	void RedoCallback();
 };
+
 
 

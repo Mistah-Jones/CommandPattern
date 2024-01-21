@@ -23,7 +23,17 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	// Indicates if the tile has been stepped on by the player
+	bool SteppedOn;
+
 	UPROPERTY(VisibleAnywhere)
 		UStaticMeshComponent* TileMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Materials")
+		UMaterialInterface* DeactivatedMaterial;
+	UPROPERTY(EditAnywhere, Category = "Materials")
+		UMaterialInterface* ActivatedMaterial;
+
+	void StepOn();
 
 };

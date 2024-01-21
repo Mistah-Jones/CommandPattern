@@ -7,52 +7,26 @@
 #include "NiagaraFunctionLibrary.h"
 #include "TileConquestCharacter.h"
 #include "Engine/World.h"
+#include <MoveCommand.h>
+
+// TArray<MoveCommand*> MoveCommands;
+// TQueue<MoveCommand*> MoveCommands;
+MoveCommand* m_MoveCommand;
+int moveCommandIndex = -1;
 
 ATileConquestPlayerController::ATileConquestPlayerController()
 {
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
+	m_MoveCommand = new MoveCommand(this);
+	// MoveCommands.Enqueue(m_CurrentMoveCommand);
+	// auto firstMoveCommand = new MoveCommand(this);
+	// MoveCommands.Add(firstMoveCommand);
 }
 
 void ATileConquestPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
-	/*
-	if(bInputPressed)
-	{
-		FollowTime += DeltaTime;
-
-		// Look for the touch location
-		FVector HitLocation = FVector::ZeroVector;
-		FHitResult Hit;
-		if(bIsTouch)
-		{
-			GetHitResultUnderFinger(ETouchIndex::Touch1, ECC_Visibility, true, Hit);
-		}
-		else
-		{
-			GetHitResultUnderCursor(ECC_Visibility, true, Hit);
-		}
-		AActor* hitActor = Hit.GetActor();
-
-		HitLocation = hitActor->GetActorLocation();
-
-		// GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, hitActor);
-
-
-		// Direct the Pawn towards that location
-		APawn* const MyPawn = GetPawn();
-		if(MyPawn && hitActor->IsA(ATile::StaticClass()))
-		{
-			FVector WorldDirection = (HitLocation - MyPawn->GetActorLocation()).GetSafeNormal();
-			MyPawn->AddMovementInput(WorldDirection, 1.f, false);
-		}
-	}
-	else
-	{
-		FollowTime = 0.f;
-	}
-	*/
 }
 
 bool ATileConquestPlayerController::IsTileInRange(ATile* DestinationTile)
@@ -69,6 +43,72 @@ bool ATileConquestPlayerController::IsTileInRange(ATile* DestinationTile)
 	return FVector::Distance(currLocation, targetLocation) < 151.f;
 }
 
+void ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activateStep)
+{
+	// If the destination is null, we have likely hit the end of the undo / redo chain
+	// This prevents a crash!	
+	if (destinationTile == nullptr)
+	{
+		return;
+	}
+
+	if (IsTileInRange(destinationTile))
+	{
+		FVector HitLocation = destinationTile->GetActorLocation();
+		CurrentTile = destinationTile;
+
+		// We move there and spawn some particles
+		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitLocation);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, HitLocation, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
+
+		// Finally, update the tile to react to the step
+		if (activateStep)
+		{
+			destinationTile->StepOn();
+		}
+	}
+}
+
+ATile* ATileConquestPlayerController::GetCurrentTile() 
+{
+	return CurrentTile;
+}
+
+void ATileConquestPlayerController::UndoCallback()
+{
+	/*
+	if (MoveCommands[moveCommandIndex]->PreviousTile == nullptr)
+	{
+		// ignore undo command
+		return;
+	}
+	MoveCommands[moveCommandIndex]->undo();
+	moveCommandIndex--;
+	if (moveCommandIndex < 0)
+	{
+		moveCommandIndex = 0;
+	}
+	*/
+	m_MoveCommand->undo();
+}
+
+void ATileConquestPlayerController::RedoCallback()
+{
+	/*
+	if (MoveCommands[moveCommandIndex]->PreviousTile == nullptr)
+	{
+		// ignore undo command
+		return;
+	}
+	MoveCommands[moveCommandIndex]->undo();
+	moveCommandIndex--;
+	if (moveCommandIndex < 0)
+	{
+		moveCommandIndex = 0;
+	}
+	*/
+	m_MoveCommand->redo();
+}
 
 void ATileConquestPlayerController::SetupInputComponent()
 {
@@ -77,6 +117,20 @@ void ATileConquestPlayerController::SetupInputComponent()
 
 	InputComponent->BindAction("SetDestination", IE_Pressed, this, &ATileConquestPlayerController::OnSetDestinationPressed);
 	InputComponent->BindAction("SetDestination", IE_Released, this, &ATileConquestPlayerController::OnSetDestinationReleased);
+	InputComponent->BindAction
+	(
+		"Undo", // The input identifier (specified in DefaultInput.ini)
+		IE_Pressed, // React when button pressed (or on release, etc., if desired)
+		this, // The object instance that is going to react to the input
+		&ATileConquestPlayerController::UndoCallback // The function that will fire when input is received
+	);
+	InputComponent->BindAction
+	(
+		"Redo", // The input identifier (specified in DefaultInput.ini)
+		IE_Pressed, // React when button pressed (or on release, etc., if desired)
+		this, // The object instance that is going to react to the input
+		&ATileConquestPlayerController::RedoCallback // The function that will fire when input is received
+	);
 
 	// support touch devices 
 	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ATileConquestPlayerController::OnTouchPressed);
@@ -86,43 +140,54 @@ void ATileConquestPlayerController::SetupInputComponent()
 
 void ATileConquestPlayerController::OnSetDestinationPressed()
 {
-	// We flag that the input is being pressed
-	bInputPressed = true;
 	// Just in case the character was moving because of a previous short press we stop it
 	StopMovement();
 }
 
-void ATileConquestPlayerController::OnSetDestinationReleased()
+void ATileConquestPlayerController::CleanUpCommandList()
 {
-	// Player is no longer pressing the input
-	bInputPressed = false;
-
-	// If it was a short press
-	if(FollowTime <= ShortPressThreshold)
+	/*
+	auto sizeOfArray = MoveCommands.Num() - 1;
+	for (int i = moveCommandIndex+1; i < sizeOfArray; i++)
 	{
-		// We look for the location in the world where the player has pressed the input
-		FVector HitLocation = FVector::ZeroVector;
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, true, Hit);
-
-		AActor* hitActor = Hit.GetActor();
-		if (hitActor->IsA(ATile::StaticClass()))
+		MoveCommands.RemoveAt(MoveCommands.Num() - 1);
+		// MoveCommands.RemoveAt(i);
+	}
+	for(MoveCommand* movecomm : MoveCommands)
+	{
+		if (movecomm->PreviousTile == nullptr)
 		{
-			ATile* tileActor = Cast<ATile>(hitActor);
-			if (IsTileInRange(tileActor))
-			{
-				HitLocation = hitActor->GetActorLocation();
-				CurrentTile = tileActor;
-
-				// We move there and spawn some particles
-				UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitLocation);
-				UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, HitLocation, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
-
-			}
-
+			MoveCommands.Remove(movecomm);
 		}
 	}
+	*/
 }
+
+void ATileConquestPlayerController::OnSetDestinationReleased()
+{
+	// We look for the location in the world where the player has pressed the input
+	FVector HitLocation = FVector::ZeroVector;
+	FHitResult Hit;
+	GetHitResultUnderCursor(ECC_Visibility, true, Hit);
+
+	AActor* hitActor = Hit.GetActor();
+	if (hitActor->IsA(ATile::StaticClass()))
+	{
+		ATile* tileActor = Cast<ATile>(hitActor);
+		m_MoveCommand->execute(tileActor);
+		/*
+		auto moveCommand = new MoveCommand(this);
+		moveCommand->execute(tileActor);
+		moveCommandIndex++;
+		*/
+
+		//CleanUpCommandList();
+		//MoveCommands.Add(moveCommand);
+		// MoveTo(tileActor);
+	}
+}
+
+
 
 void ATileConquestPlayerController::OnTouchPressed(const ETouchIndex::Type FingerIndex, const FVector Location)
 {

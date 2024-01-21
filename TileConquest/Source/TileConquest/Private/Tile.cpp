@@ -11,13 +11,16 @@ ATile::ATile()
 
 	TileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Tile Mesh"));
 
+	DeactivatedMaterial = CreateDefaultSubobject<UMaterialInterface>("Deactivated Material");
+	ActivatedMaterial = CreateDefaultSubobject<UMaterialInterface>("Activated Material");
+
 }
 
 // Called when the game starts or when spawned
 void ATile::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	TileMesh->SetMaterial(0, SteppedOn ? ActivatedMaterial : DeactivatedMaterial);
 }
 
 // Called every frame
@@ -25,5 +28,11 @@ void ATile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+void ATile::StepOn()
+{
+	SteppedOn = !SteppedOn;
+	TileMesh->SetMaterial(0, SteppedOn ? ActivatedMaterial : DeactivatedMaterial);
 }
 
