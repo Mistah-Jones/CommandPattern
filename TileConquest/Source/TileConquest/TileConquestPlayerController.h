@@ -6,8 +6,6 @@
 #include "Templates/SubclassOf.h"
 #include "GameFramework/PlayerController.h"
 #include <Tile.h>
-//#include <Command.h>
-// #include <MoveCommand.h>
 #include "TileConquestPlayerController.generated.h"
 
 /** Forward declaration to improve compiling times */
@@ -28,6 +26,16 @@ public:
 	/** FX Class that we will spawn when clicking */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UNiagaraSystem* FXCursor;
+
+	/** Sound to play when stepping */
+	UPROPERTY(EditAnywhere, Category = "sound")
+	class USoundBase* GlassBreakSound;
+	/** Ambient Background sound */
+	UPROPERTY(EditAnywhere, Category = "sound")
+	class USoundBase* AmbienceSound;
+	/** Sound to play when the level is complete */
+	UPROPERTY(EditAnywhere, Category = "sound")
+	class USoundBase* SuccessSound;
 
 	bool MoveTo(ATile* destinationTile, bool activateStep, bool isUndoOrRedo);
 	ATile* GetCurrentTile();
@@ -53,12 +61,13 @@ private:
 	bool bIsTouch; // Is it a touch device
 	float FollowTime; // For how long it has been pressed
 	ATile* CurrentTile;
-	// MoveCommand* movementCommand;
+	bool CanMove;
 
 	bool IsTileInRange(ATile* DestinationTile);
-	void CleanUpCommandList();
 	void UndoCallback();
 	void RedoCallback();
+
+	void CheckIfLevelComplete();
 };
 
 

@@ -24,6 +24,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	// Indicates if the tile has been stepped on by the player
+	UPROPERTY(EditAnywhere, Category = "Functionality")
 	bool SteppedOn;
 
 	UPROPERTY(VisibleAnywhere)

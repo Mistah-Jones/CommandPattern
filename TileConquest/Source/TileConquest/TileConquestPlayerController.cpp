@@ -9,12 +9,13 @@
 #include "Engine/World.h"
 #include <MoveCommand.h>
 #include <Kismet/GameplayStatics.h>
+#include <NavigationSystem.h>
 
 TArray<MoveCommand*> MoveCommands;
-// TQueue<MoveCommand*> MoveCommands;
 MoveCommand* m_CurrentMoveCommand;
 int moveCommandIndex = 0;
 bool foundFirstTile = false;
+bool startedMusic = false;
 
 ATileConquestPlayerController::ATileConquestPlayerController()
 {
@@ -23,19 +24,21 @@ ATileConquestPlayerController::ATileConquestPlayerController()
 	DefaultMouseCursor = EMouseCursor::Default;
 	m_CurrentMoveCommand = new MoveCommand(this);
 	foundFirstTile = false;
-	// MoveCommands.Enqueue(m_CurrentMoveCommand);
-	// auto firstMoveCommand = new MoveCommand(this);
-	// MoveCommands.Add(firstMoveCommand);
+	startedMusic = false;
 }
 
 void ATileConquestPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	if (!startedMusic)
+	{
+		UGameplayStatics::SpawnSound2D(this, AmbienceSound);
+		startedMusic = true;
+	}
 	if (!foundFirstTile)
 	{
 		TArray<AActor*> FoundActors;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile::StaticClass(), FoundActors);
-		// UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetOverlappingActors(FoundActors, ATile::StaticClass());
 		auto playerLocation = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation();
 
 		for(AActor* actor : FoundActors)
@@ -47,12 +50,77 @@ void ATileConquestPlayerController::PlayerTick(float DeltaTime)
 				{
 					m_CurrentMoveCommand->execute(tile);
 					foundFirstTile = true;
+
+					// Rebuild Nav Mesh once the level has loaded
+					UNavigationSystemV1* navigation_system = UNavigationSystemV1::GetCurrent(GetWorld());
+
+					if (navigation_system)
+					{
+						navigation_system->Build();
+					}
+
+					CanMove = true;
+
 					break;
 				}
 			}
 		}
 	}
 }
+
+void ATileConquestPlayerController::CheckIfLevelComplete()
+{
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile::StaticClass(), FoundActors);
+	for (AActor* actor : FoundActors)
+	{
+		if (ATile* tile = Cast<ATile>(actor))
+		{
+			if (!tile->SteppedOn)
+			{
+				return;
+			}
+		}
+	}
+
+	// If you made it this far, all tiles have been stepped on.
+	// Make sure the player cannot input any new movements once they've completed the level
+	CanMove = false;
+	UGameplayStatics::SpawnSound2D(this, SuccessSound);
+	// Load the next level once the player has reached their destination.
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+		{
+			FString CurrentLevel = GetWorld()->GetMapName();
+			if (CurrentLevel.EndsWith("Level_0"))
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), "Level_1");
+			}
+			else if (CurrentLevel.EndsWith("Level_1"))
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), "Level_6");
+			}
+			else if (CurrentLevel.EndsWith("Level_6"))
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), "Level_2");
+			}
+			else if (CurrentLevel.EndsWith("Level_2"))
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), "Level_3");
+			}
+			else if (CurrentLevel.EndsWith("Level_3"))
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), "Level_4");
+			}
+			else
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), "Level_0");
+			}
+		}, 1.5, false);
+
+	
+}
+
 
 void ATileConquestPlayerController::DecreaseMoveCommandCount()
 {
@@ -88,6 +156,7 @@ bool ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activate
 		CurrentTile = destinationTile;
 
 		// We move there and spawn some particles
+		// UAIBlueprintHelperLibrary::MoveTo
 		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitLocation);
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, HitLocation, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
 
@@ -95,6 +164,7 @@ bool ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activate
 		if (activateStep)
 		{
 			destinationTile->StepOn();
+			UGameplayStatics::SpawnSound2D(this, GlassBreakSound);
 		}
 
 		// Only add a movement command if it wasn't an undo or redo
@@ -107,6 +177,7 @@ bool ATileConquestPlayerController::MoveTo(ATile* destinationTile, bool activate
 		auto intstring = FString::FromInt(moveCommandIndex);
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, intstring);
 
+		CheckIfLevelComplete();
 		return true;
 	}
 	else
@@ -122,55 +193,34 @@ ATile* ATileConquestPlayerController::GetCurrentTile()
 
 void ATileConquestPlayerController::UndoCallback()
 {
-	/*
-	if (MoveCommands[moveCommandIndex]->PreviousTile == nullptr)
+	if (CanMove)
 	{
-		// ignore undo command
-		return;
-	}
-	MoveCommands[moveCommandIndex]->undo();
-	moveCommandIndex--;
-	if (moveCommandIndex < 0)
-	{
-		moveCommandIndex = 0;
-	}
-	*/
-	// Don't let the player undo if they haven't done anything yet!
-	if (MoveCommands.Num() > 0)
-	{
-		// Don't let the player undo past the first move
-		if (moveCommandIndex >= 0)
+		// Don't let the player undo if they haven't done anything yet!
+		if (MoveCommands.Num() > 0)
 		{
-			MoveCommands[moveCommandIndex]->undo();
-			// moveCommandIndex--;
+			// Don't let the player undo past the first move
+			if (moveCommandIndex >= 0)
+			{
+				MoveCommands[moveCommandIndex]->undo();
+				// moveCommandIndex--;
+			}
 		}
 	}
-
 }
 
 void ATileConquestPlayerController::RedoCallback()
 {
-	/*
-	if (MoveCommands[moveCommandIndex]->PreviousTile == nullptr)
+	if (CanMove)
 	{
-		// ignore undo command
-		return;
-	}
-	MoveCommands[moveCommandIndex]->undo();
-	moveCommandIndex--;
-	if (moveCommandIndex < 0)
-	{
-		moveCommandIndex = 0;
-	}
-	*/
-	// The player hasn't done anything yet!
-	if (m_CurrentMoveCommand != nullptr)
-	{
-		// Don't let the player redo a move they haven't made yet
-		if (moveCommandIndex < MoveCommands.Num() - 1)
+		// The player hasn't done anything yet!
+		if (m_CurrentMoveCommand != nullptr)
 		{
-			moveCommandIndex++;
-			MoveCommands[moveCommandIndex]->redo();
+			// Don't let the player redo a move they haven't made yet
+			if (moveCommandIndex < MoveCommands.Num() - 1)
+			{
+				moveCommandIndex++;
+				MoveCommands[moveCommandIndex]->redo();
+			}
 		}
 	}
 }
@@ -209,49 +259,23 @@ void ATileConquestPlayerController::OnSetDestinationPressed()
 	// StopMovement();
 }
 
-void ATileConquestPlayerController::CleanUpCommandList()
-{
-	/*
-	auto sizeOfArray = MoveCommands.Num() - 1;
-	for (int i = moveCommandIndex+1; i < sizeOfArray; i++)
-	{
-		MoveCommands.RemoveAt(MoveCommands.Num() - 1);
-		// MoveCommands.RemoveAt(i);
-	}
-	for(MoveCommand* movecomm : MoveCommands)
-	{
-		if (movecomm->PreviousTile == nullptr)
-		{
-			MoveCommands.Remove(movecomm);
-		}
-	}
-	*/
-}
-
 void ATileConquestPlayerController::OnSetDestinationReleased()
 {
-	// We look for the location in the world where the player has pressed the input
-	FVector HitLocation = FVector::ZeroVector;
-	FHitResult Hit;
-	GetHitResultUnderCursor(ECC_Visibility, true, Hit);
-
-	AActor* hitActor = Hit.GetActor();
-	if (hitActor != nullptr)
+	if (CanMove)
 	{
-		if (hitActor->IsA(ATile::StaticClass()))
-		{
-			ATile* tileActor = Cast<ATile>(hitActor);
-			// m_CurrentMoveCommand = new MoveCommand(this);
-			m_CurrentMoveCommand->execute(tileActor);
-			/*
-			auto moveCommand = new MoveCommand(this);
-			moveCommand->execute(tileActor);
-			moveCommandIndex++;
-			*/
+		// We look for the location in the world where the player has pressed the input
+		FVector HitLocation = FVector::ZeroVector;
+		FHitResult Hit;
+		GetHitResultUnderCursor(ECC_Visibility, true, Hit);
 
-			//CleanUpCommandList();
-			//MoveCommands.Add(moveCommand);
-			// MoveTo(tileActor);
+		AActor* hitActor = Hit.GetActor();
+		if (hitActor != nullptr)
+		{
+			if (hitActor->IsA(ATile::StaticClass()))
+			{
+				ATile* tileActor = Cast<ATile>(hitActor);
+				m_CurrentMoveCommand->execute(tileActor);
+			}
 		}
 	}
 }
