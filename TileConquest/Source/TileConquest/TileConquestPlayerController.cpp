@@ -251,6 +251,15 @@ void ATileConquestPlayerController::SetupInputComponent()
 	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ATileConquestPlayerController::OnTouchPressed);
 	InputComponent->BindTouch(EInputEvent::IE_Released, this, &ATileConquestPlayerController::OnTouchReleased);
 
+	// quit
+	InputComponent->BindAction
+	(
+		TEXT("Quit"),
+		IE_Pressed,
+		this,
+		&ATileConquestPlayerController::Quit
+	);
+
 }
 
 void ATileConquestPlayerController::OnSetDestinationPressed()
@@ -292,4 +301,10 @@ void ATileConquestPlayerController::OnTouchReleased(const ETouchIndex::Type Fing
 {
 	bIsTouch = false;
 	OnSetDestinationReleased();
+}
+
+void ATileConquestPlayerController::Quit()
+{
+	TEnumAsByte<EQuitPreference::Type> QuitPreference = EQuitPreference::Quit;
+	UKismetSystemLibrary::QuitGame(GetWorld(), UGameplayStatics::GetPlayerController(GetWorld(), 0), QuitPreference, true);
 }
